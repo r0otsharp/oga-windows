@@ -15,7 +15,7 @@ import test_port
 def _linux_setup_test(conf):
     port_name = 'linux-functional-test-port'
     conf.set('general', 'applications_list',
-             'kernel ovirt-guest-agent xorg-x11-drv-qxl '
+             'kernel ovirt_guest_agent xorg-x11-drv-qxl '
              'linux-image xserver-xorg-video-qxl')
     conf.set('general', 'ignored_fs',
              'rootfs tmpfs autofs cgroup selinuxfs udev mqueue '

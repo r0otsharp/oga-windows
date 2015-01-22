@@ -172,7 +172,7 @@ class CommandHandlerLinux:
         self.agent = agent
 
     def lock_screen(self):
-        cmd = ['/usr/share/ovirt-guest-agent/ovirt-locksession']
+        cmd = ['/usr/share/ovirt_guest_agent/ovirt-locksession']
         logging.debug("Executing lock session command: '%s'", cmd)
         subprocess.call(cmd)
 
@@ -191,14 +191,14 @@ class CommandHandlerLinux:
         if reboot:
             param = '-r'
             action = 'reboot'
-        cmd = ['/usr/share/ovirt-guest-agent/ovirt-shutdown', param,
+        cmd = ['/usr/share/ovirt_guest_agent/ovirt-shutdown', param,
                "+%d" % (delay), "\"%s\"" % (msg)]
 
         logging.debug("Executing %s command: %s", action, cmd)
         subprocess.call(cmd)
 
     def hibernate(self, state):
-        cmd = ['/usr/share/ovirt-guest-agent/ovirt-hibernate', state]
+        cmd = ['/usr/share/ovirt_guest_agent/ovirt-hibernate', state]
         logging.debug("Executing hibernate command: %s", cmd)
         subprocess.call(cmd)
 
@@ -292,7 +292,7 @@ class LinuxDataRetriver(DataRetriverBase):
         return usages
 
     def getDiskMapping(self):
-        CMD = '/usr/share/ovirt-guest-agent/diskmapper'
+        CMD = '/usr/share/ovirt_guest_agent/diskmapper'
         mapping = {}
         for line in _readLinesFromProcess([CMD]):
             try:

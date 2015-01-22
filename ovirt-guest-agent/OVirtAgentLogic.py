@@ -21,6 +21,7 @@ import time
 import logging
 import struct
 import socket
+import os
 
 multiproc = None
 try:
@@ -55,7 +56,9 @@ _MESSAGE_MIN_API_VERSION = {
     'session-logon': 0,
     'session-shutdown': 0,
     'session-startup': 0,
-    'session-unlock': 0}
+    'session-unlock': 0,
+    'set_admin_password_result': 0,
+    'rename_result': 0}
 
 
 # Return a safe (password masked) repr of the credentials block.
@@ -169,6 +172,9 @@ class AgentLogicBase:
         self.numCPUsCheckRate = config.getint("general", "report_num_cpu_rate")
         self.activeUser = ""
         self.vio = VirtIoChannel(config.get("virtio", "device"))
+
+        #self.vio = VirtIoChannel("\\.\Global\com.redhat.rhevm.vdsm")
+        #self.vio = VirtIoChannel("C:\\test")
         self.dr = None
         self.commandHandler = None
 
@@ -177,14 +183,14 @@ class AgentLogicBase:
         if version is None:
             logging.error('Undocumented message "%s"', name)
         elif version <= self.dr.getAPIVersion():
-            logging.debug("Sending %s with args %s" % (name, arguments))
+            logging.info("Sending %s with args %s" % (name, arguments))
             self.vio.write(name, arguments or {})
         else:
-            logging.debug("Message %s not supported by api version %d.",
+            logging.info("Message %s not supported by api version %d.",
                           name, self.dr.getAPIVersion())
 
     def run(self):
-        logging.debug("AgentLogicBase:: run() entered")
+        logging.info("AgentLogicBase:: run() entered")
         thread.start_new_thread(self.doListen, ())
         thread.start_new_thread(self.doWork, ())
 
@@ -271,6 +277,20 @@ class AgentLogicBase:
         logging.info("Received an external command: %s..." % (command))
         if command == 'lock-screen':
             self.commandHandler.lock_screen()
+        elif command == 'set_admin_password':
+            try:
+                password = args['admin_password']
+            except:
+                logging.error("empty password. password not set")
+            ret = self.commandHandler.set_admin_password(password)
+            self._send('set_admin_password_result',{'ret': ret})
+        elif command == 'rename':
+            try:
+                hostname = args['hostname']
+            except:
+                logging.error("empty hostname. hostname not set")
+            ret = self.commandHandler.rename(hostname)
+            self._send('rename_result',{'ret': ret})
         elif command == 'log-off':
             self.commandHandler.logoff()
         elif command == 'api-version':

@@ -188,6 +188,8 @@ class VirtIoChannel:
         return self._parseLine(self._readline())
 
     def write(self, name, args={}):
+        count = 5
+        i = 0
         if not isinstance(name, str):
             raise TypeError("1nd arg must be a str.")
         if not isinstance(args, dict):
@@ -195,10 +197,12 @@ class VirtIoChannel:
         args['__name__'] = name
         args = _filter_object(args)
         message = (json.dumps(args) + '\n').encode('utf8')
-        while len(message) > 0:
+        while len(message) > 0 and i < count:
             written = self._stream.write(message)
             logging.debug("Written %s" % message[:written])
+            logging.debug("message = %s " % message)
             message = message[written:]
+            i += 1
 
 
 def _create_vio():

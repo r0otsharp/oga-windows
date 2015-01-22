@@ -23,6 +23,7 @@ import sys
 import getopt
 import ConfigParser
 import cStringIO
+from GuestAgentWin32 import WinVdsAgent
 
 io = None
 try:
@@ -34,24 +35,32 @@ except ImportError:
 
 from GuestAgentLinux2 import LinuxVdsAgent
 
-AGENT_CONFIG = '/etc/ovirt-guest-agent.conf'
-AGENT_DEFAULT_CONFIG = '/usr/share/ovirt-guest-agent/default.conf'
-AGENT_DEFAULT_LOG_CONFIG = '/usr/share/ovirt-guest-agent/default-logger.conf'
-AGENT_PIDFILE = '/run/ovirt-guest-agent.pid'
+#AGENT_CONFIG = '/etc/ovirt_guest_agent.conf'
+#AGENT_DEFAULT_CONFIG = '/usr/share/ovirt_guest_agent/default.conf'
+#AGENT_DEFAULT_LOG_CONFIG = '/usr/share/ovirt_guest_agent/default-logger.conf'
+#AGENT_PIDFILE = '/run/ovirt_guest_agent.pid'
+
+AGENT_CONFIG = 'C:\\ovirt-guest-agent\\ovirt-guest-agent\\ovirt-guest-agent\\ovirt-guest-agent.ini'
+AGENT_DEFAULT_CONFIG = 'C:\\ovirt-guest-agent\\ovirt-guest-agent\\ovirt-guest-agent\\default.ini'
+AGENT_DEFAULT_LOG_CONFIG = 'C:\\ovirt-guest-agent\\ovirt-guest-agent\\ovirt-guest-agent\\default-logger.ini'
+AGENT_PIDFILE = 'C:\\ovirt-guest-agent\\ovirt-guest-agent\\ovirt-guest-agent\\ovirt-guest-agent.pid'
 
 
 class OVirtAgentDaemon:
 
     def __init__(self):
-        cparser = ConfigParser.ConfigParser()
-        cparser.read(AGENT_DEFAULT_LOG_CONFIG)
-        cparser.read(AGENT_CONFIG)
-        strio = cStringIO.StringIO()
-        cparser.write(strio)
-        bio = io.BytesIO(strio.getvalue())
-        logging.config.fileConfig(bio)
-        bio.close()
-        strio.close()
+        #cparser = ConfigParser.ConfigParser()
+        #cparser.read(AGENT_DEFAULT_LOG_CONFIG)
+        #cparser.read(AGENT_CONFIG)
+        #strio = cStringIO.StringIO()
+        #cparser.write(strio)
+        #bio = io.BytesIO(strio.getvalue())
+        try:
+            logging.config.fileConfig(AGENT_CONFIG)
+        except Exception, e:
+            print e
+        #bio.close()
+        #strio.close()
 
     def run(self, daemon, pidfile):
         logging.info("Starting oVirt guest agent")
@@ -60,18 +69,9 @@ class OVirtAgentDaemon:
         config.read(AGENT_DEFAULT_LOG_CONFIG)
         config.read(AGENT_CONFIG)
 
-        self.agent = LinuxVdsAgent(config)
+        self.vdsAgent = WinVdsAgent(config)
+        self.vdsAgent.run()
 
-        if daemon:
-            self._daemonize()
-
-        f = file(pidfile, "w")
-        f.write("%s\n" % (os.getpid()))
-        f.close()
-        os.chmod(pidfile, 0644)   # rw-rw-r-- (664)
-
-        self.register_signal_handler()
-        self.agent.run()
 
         logging.info("oVirt guest agent is down.")
 

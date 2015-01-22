@@ -24,12 +24,17 @@ from ctypes.wintypes import DWORD
 import _winreg
 import ctypes
 import ctypes.wintypes
+import sys
+import platform
+import re
+import six
 
 # Constants according to
 # http://msdn.microsoft.com/en-us/library/windows/desktop/ms724878.aspx
 KEY_WOW64_32KEY = 0x0100
 KEY_WOW64_64KEY = 0x0200
-
+NETBIOS_HOST_NAME_MAX_LEN = 15
+kernel32 = ctypes.windll.kernel32
 
 class StoragePropertyQuery(ctypes.Structure):
     _fields_ = (
@@ -79,7 +84,6 @@ def QueryStringValue(hkey, name):
     if res != 0:
         return unicode()
     return key_value.value
-
 
 def GetActiveSessionId():
     for session in win32ts.WTSEnumerateSessions():
@@ -286,6 +290,53 @@ class CommandHandlerWin:
                                      sessionId, 0)
         else:
             logging.debug("No active session. Ignoring log off command.")
+
+    def set_admin_password(self, password):
+        cmd = "net user administrator %s" % password
+        logging.info("do exec set_admin_password: %s",cmd)
+
+        p = subprocess.Popen(cmd,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         shell=True)
+        (out, err) = p.communicate()
+        decode_output = False
+        if decode_output and sys.version_info < (3, 0):
+            out = out.decode(sys.stdout.encoding)
+            err = err.decode(sys.stdout.encoding)
+
+        if p.returncode != 0:
+            logging.error('Script "%(cmd)s" ended with exit code: %(ret_val)d' %
+                 {"cmd": cmd, "ret_val": p.returncode})
+            logging.error('User_data stdout:\n%s' % out)
+            logging.error('User_data stderr:\n%s' % err)
+        else:
+            logging.info("set_admin_password OK")
+        return p.returncode
+
+    def rename(self, hostname):
+        hostname = hostname.split('.', 1)[0]
+        if len(hostname) > NETBIOS_HOST_NAME_MAX_LEN:
+            new_hostname = hostname[:NETBIOS_HOST_NAME_MAX_LEN]
+        else:
+            new_hostname = hostname
+        new_hostname = re.sub(r'-$', '0', new_hostname)
+        logging.info("set new hostname = %s", new_hostname)
+        if platform.node().lower() == new_hostname.lower():
+            logging.info("Hostname already set to %s", new_hostname)
+            return 0
+        else:
+            ret_val = kernel32.SetComputerNameExW(
+                5,
+                six.text_type(new_hostname)
+            )
+            if ret_val:
+                logging.info("rename OK")
+                return 0
+            else:
+                logging.error("rename is failed ret = %d", ret_val)
+                return -1
+
 
     def shutdown(self, timeout, msg, reboot=False):
         param = '-s'
@@ -630,6 +681,7 @@ class WinVdsAgent(AgentLogicBase):
 
     def run(self):
         logging.debug("WinVdsAgent:: run() entered")
+        logging.info("WinVdsAgent:: run() entered")
         try:
             self.disable_screen_saver()
             AgentLogicBase.run(self)
@@ -658,7 +710,6 @@ class WinVdsAgent(AgentLogicBase):
                                win32con.REG_SZ, "0")
         keyHandle.Close()
 
-
 def test():
     dr = WinDataRetriver()
     print "Machine Name:", dr.getMachineName()
@@ -672,6 +723,10 @@ def test():
     print "Disks Usage:", dr.getDisksUsage()
     print "Memory Stats:", dr.getMemoryStats()
     print "DiskMapping:", dr.getDiskMapping()
+    ch = CommandHandlerWin()
+    ch.rename(u"wer123")
+
+
 
 if __name__ == '__main__':
     test()

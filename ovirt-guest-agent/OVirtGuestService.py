@@ -14,6 +14,7 @@ import _winreg
 import ConfigParser
 import io
 import cStringIO
+import StringIO
 
 AGENT_CONFIG = 'ovirt-guest-agent.ini'
 AGENT_DEFAULT_CONFIG = 'default.ini'
@@ -33,6 +34,7 @@ class OVirtGuestService(win32serviceutil.ServiceFramework):
     _svc_description_ = "OVirt Guest Agent Service"
     _svc_deps_ = ["EventLog"]
 
+
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self._shutting_down = False
@@ -48,21 +50,13 @@ class OVirtGuestService(win32serviceutil.ServiceFramework):
             filePath = _winreg.QueryValueEx(hkey, "")[0].replace('"', '')
             hkey.Close()
         filePath = os.path.dirname(filePath)
+
         AGENT_CONFIG = os.path.join(filePath, AGENT_CONFIG)
         AGENT_DEFAULT_CONFIG = os.path.join(filePath, AGENT_DEFAULT_CONFIG)
         AGENT_DEFAULT_LOG_CONFIG = os.path.join(filePath,
                                                 AGENT_DEFAULT_LOG_CONFIG)
-
-        cparser = ConfigParser.ConfigParser()
-        if os.path.exists(AGENT_DEFAULT_LOG_CONFIG):
-            cparser.read(AGENT_DEFAULT_LOG_CONFIG)
-        cparser.read(AGENT_CONFIG)
-        strio = cStringIO.StringIO()
-        cparser.write(strio)
-        bio = io.BytesIO(strio.getvalue())
-        logging.config.fileConfig(bio)
-        bio.close()
-        strio.close()
+        self._file.write(AGENT_DEFAULT_LOG_CONFIG)
+        logging.config.fileConfig(AGENT_CONFIG)
 
     # Overriding this method in order to accept session change notifications.
     def GetAcceptedControls(self):
@@ -79,8 +73,6 @@ class OVirtGuestService(win32serviceutil.ServiceFramework):
         self.ReportEvent(servicemanager.PYS_SERVICE_STARTED)
         logging.info("Starting OVirt Guest Agent service")
         config = ConfigParser.ConfigParser()
-        if os.path.exists(AGENT_DEFAULT_CONFIG):
-            config.read(AGENT_DEFAULT_CONFIG)
         config.read(AGENT_CONFIG)
 
         self.vdsAgent = WinVdsAgent(config)
