@@ -172,11 +172,22 @@ class AgentLogicBase:
         self.numCPUsCheckRate = config.getint("general", "report_num_cpu_rate")
         self.activeUser = ""
         self.vio = VirtIoChannel(config.get("virtio", "device"))
-
+        self.commandio = VirtIoChannel(config.get("commandio", "device"))
         #self.vio = VirtIoChannel("\\.\Global\com.redhat.rhevm.vdsm")
         #self.vio = VirtIoChannel("C:\\test")
         self.dr = None
         self.commandHandler = None
+
+    def _send_command(self, name, arguments=None):
+        version = _MESSAGE_MIN_API_VERSION.get(name, None)
+        if version is None:
+            logging.error('Undocumented message "%s"', name)
+        elif version <= self.dr.getAPIVersion():
+            logging.info("Sending %s with args %s" % (name, arguments))
+            self.commandio.write(name, arguments or {})
+        else:
+            logging.info("Message %s not supported by api version %d.",
+                          name, self.dr.getAPIVersion())
 
     def _send(self, name, arguments=None):
         version = _MESSAGE_MIN_API_VERSION.get(name, None)
@@ -262,7 +273,7 @@ class AgentLogicBase:
             try:
                 logging.debug("AgentLogicBase::doListen() - "
                               "in loop before vio.read")
-                cmd, args = self.vio.read()
+                cmd, args = self.commandio.read()
                 if cmd:
                     self.parseCommand(cmd, args)
             except:
@@ -283,14 +294,16 @@ class AgentLogicBase:
             except:
                 logging.error("empty password. password not set")
             ret = self.commandHandler.set_admin_password(password)
-            self._send('set_admin_password_result',{'ret': ret})
+            logging.info("send set_admin_password result %d to host", ret)
+            self._send_command('set_admin_password_result',{'ret': ret})
         elif command == 'rename':
             try:
                 hostname = args['hostname']
             except:
                 logging.error("empty hostname. hostname not set")
             ret = self.commandHandler.rename(hostname)
-            self._send('rename_result',{'ret': ret})
+            logging.info("send rename result %d to host", ret)
+            self._send_command('rename_result',{'ret': ret})
         elif command == 'log-off':
             self.commandHandler.logoff()
         elif command == 'api-version':

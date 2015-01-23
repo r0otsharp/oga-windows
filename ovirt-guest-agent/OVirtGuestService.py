@@ -55,7 +55,6 @@ class OVirtGuestService(win32serviceutil.ServiceFramework):
         AGENT_DEFAULT_CONFIG = os.path.join(filePath, AGENT_DEFAULT_CONFIG)
         AGENT_DEFAULT_LOG_CONFIG = os.path.join(filePath,
                                                 AGENT_DEFAULT_LOG_CONFIG)
-        self._file.write(AGENT_DEFAULT_LOG_CONFIG)
         logging.config.fileConfig(AGENT_CONFIG)
 
     # Overriding this method in order to accept session change notifications.
